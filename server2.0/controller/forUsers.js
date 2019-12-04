@@ -1,6 +1,7 @@
 const UsersDao = require('../service/UsersDao')
 const MD5 = require('../middleware/home').MD5
 const uuid = require('node-uuid')
+const jwt = require('jsonwebtoken')
 module.exports = {
     addUser: async (ctx, next) => {
         let newUser = ctx.request.body
@@ -24,9 +25,17 @@ module.exports = {
 
 
     getList: async (ctx, next) => {
-        let query = ctx.query
-        let users = await UsersDao.getList(query)
-        ctx.body = users
+        let role = ctx.state.user
+        if(role=="管理员"||role=="指导老师"){
+            let query = ctx.query
+            let users = await UsersDao.getList(query)
+            ctx.body = users
+        }else{
+            ctx.status = 401
+            ctx.body = {
+                message:"未登录或权限不足"
+            }
+        }
     },
 
 
@@ -78,33 +87,42 @@ module.exports = {
         }
     },
 
-
+    //验证登录
     checkLogin: async (ctx, next) => {
         let {
             u_id,
             password
         } = ctx.request.body
         // console.log({u_id, password})
-        let result = await UsersDao.getUserPassword(u_id)
+        let user = await UsersDao.getLoginInfo(u_id)
         // console.log(result)
-        if (!result) {
+        if (!user) {
             ctx.body = {
                 code: 0,
                 message: '账号或密码不正确'
             }
         } else {
-            let correctPassword = result.password
+            let correctPassword = user.password
             let {
                 solt
-            } = result
+            } = user
             // console.log(correctPassword,solt)
-
             password = await MD5(password, solt)
 
             if (password === correctPassword) {
+                //生成token
+                const playload = {
+                    u_id: user.u_id,
+                    u_name: user.u_name
+                }
+                const token = jwt.sign(playload, 'mykey' ,{
+                    expiresIn: 3600//有效期
+                })
+                console.log(playload)
                 ctx.body = {
                     code: 1,
-                    message: "登录成功"
+                    message: "登录成功",
+                    token:'Bearer ' + token
                 }
             } else {
                 ctx.body = {

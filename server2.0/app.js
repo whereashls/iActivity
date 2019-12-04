@@ -6,6 +6,10 @@ const onerror = require('koa-onerror')
 const bodyparser = require('koa-bodyparser')
 const logger = require('koa-logger')
 
+const passport = require('./config/passport')
+
+app.use(passport.initialize())//passport初始化
+
 const common = require('./routes/common')
 const users = require('./routes/users')
 const activities = require('./routes/activities')
